@@ -20,11 +20,62 @@ extern Object* writelnProcedure;
 CodeBlock* codeBlock;
 
 void genVariableAddress(Object* var) {
-  // TODO
+  int level = 0;
+  Scope* scope = symtab->currentScope;
+  Scope* varScope = NULL;
+
+  if (var->kind == OBJ_VARIABLE) varScope = VARIABLE_SCOPE(var);
+  else if (var->kind == OBJ_PARAMETER) varScope = var->paramAttrs->scope;
+
+  while (scope != varScope && scope != NULL) {
+    scope = scope->outer;
+    level++;
+  }
+
+  switch (var->kind) {
+  case OBJ_VARIABLE:
+    genLA(level, VARIABLE_OFFSET(var));
+    break;
+  case OBJ_PARAMETER:
+    if (var->paramAttrs->kind == PARAM_VALUE)
+      genLA(level, PARAMETER_OFFSET(var));
+    else
+      genLV(level, PARAMETER_OFFSET(var));
+    break;
+  default:
+    break;
+  }
 }
 
 void genVariableValue(Object* var) {
-  // TODO
+  int level = 0;
+  Scope* scope = symtab->currentScope;
+  Scope* varScope = NULL;
+
+  if (var->kind == OBJ_VARIABLE) varScope = VARIABLE_SCOPE(var);
+  else if (var->kind == OBJ_PARAMETER) varScope = var->paramAttrs->scope;
+
+  while (scope != varScope && scope != NULL) {
+    scope = scope->outer;
+    level++;
+  }
+
+  switch (var->kind) {
+  case OBJ_VARIABLE:
+    genLV(level, VARIABLE_OFFSET(var));
+    break;
+  case OBJ_PARAMETER:
+    if (var->paramAttrs->kind == PARAM_REFERENCE) {
+      /* parameter contains address of actual variable */
+      genLV(level, PARAMETER_OFFSET(var));
+      genLI();
+    } else {
+      genLV(level, PARAMETER_OFFSET(var));
+    }
+    break;
+  default:
+    break;
+  }
 }
 
 int isPredefinedFunction(Object* func) {
