@@ -2,10 +2,15 @@ CFLAGS = -c -Wall
 CC = gcc
 LIBS =  -lm 
 
-all: kplc
+# [CẬP NHẬT] Thêm compare vào all
+all: kplc compare
 
 kplc: main.o parser.o scanner.o reader.o charcode.o token.o error.o symtab.o semantics.o debug.o instructions.o codegen.o
 	${CC} main.o parser.o scanner.o reader.o charcode.o token.o error.o symtab.o semantics.o debug.o instructions.o codegen.o -o kplc
+
+# [MỚI] Thêm quy tắc biên dịch cho chương trình so sánh
+compare: compare.c
+	${CC} compare.c -o compare
 
 main.o: main.c
 	${CC} ${CFLAGS} main.c
@@ -43,6 +48,6 @@ instructions.o: instructions.c
 codegen.o: codegen.c
 	${CC} ${CFLAGS} codegen.c
 
+# [CẬP NHẬT] Xóa thêm kplc và compare khi clean
 clean:
-	rm -f *.o *~
-
+	rm -f *.o *~ kplc compare
