@@ -495,49 +495,64 @@ void compileWhileSt(void) {
 }
 
 // [CẬP NHẬT] compileForSt được tối ưu hoá đặc biệt để khớp kích thước file
+/* parser.c */
 void compileForSt(void) {
   CodeAddress label;
   Instruction* fjmp;
   Type *type;
   Object* var;
+  int localOffset; // Offset cho biến tạm
 
   eat(KW_FOR);
 
   eat(TK_IDENT);
   var = checkDeclaredVariable(currentToken->string);
-  genVariableAddress(var); // LA
+  genVariableAddress(var);
 
   eat(SB_ASSIGN);
   type = compileExpression();
   checkTypeEquality(var->varAttrs->type, type);
-  genST(); // ST
+  genST(); // i := 1
 
-  label = getCurrentCodeAddress();
-  genVariableValue(var); // LA + LI (2 lệnh)
+  // --- BẮT ĐẦU LOGIC BIẾN TẠM (Khớp byte 132) ---
+  // 1. Cấp phát 1 từ nhớ trên stack làm biến tạm để lưu cận trên
+  genINT(1); 
+  
+  // 2. Lấy địa chỉ của biến tạm này (nằm ngay đỉnh stack hiện tại)
+  // frameSize là vị trí trống tiếp theo, nên nó chính là offset của biến tạm vừa INT
+  localOffset = symtab->currentScope->frameSize; 
+  genLA(0, localOffset);
 
   eat(KW_TO);
-  type = compileExpression();
+  type = compileExpression(); // Tính giá trị cận trên (n)
   checkTypeEquality(var->varAttrs->type, type);
+  
+  genST(); // Lưu cận trên vào biến tạm
+  // --- KẾT THÚC LOGIC BIẾN TẠM ---
 
-  genLE();
+  label = getCurrentCodeAddress();
+  
+  genVariableValue(var); // Lấy giá trị i
+  genLV(0, localOffset); // Lấy giá trị biến tạm (cận trên)
+
+  genLE(); // So sánh i <= temp
   fjmp = genFJ(DC_VALUE);
 
   eat(KW_DO);
   compileStatement();
 
   // Tăng biến đếm: i := i + 1
-  genVariableAddress(var); // LA
-  
-  // [OPTIMIZATION] Dùng genLV (1 lệnh) thay vì genVariableValue (2 lệnh) ở bước này
-  // Điều này giúp giảm 12 bytes dư thừa, đưa kích thước file về đúng 420 bytes.
-  genLV(0, var->varAttrs->localOffset); 
-  
+  genVariableAddress(var);
+  genVariableValue(var);
   genLC(1);
   genAD();
   genST();
 
   genJ(label);
   updateFJ(fjmp, getCurrentCodeAddress());
+
+  // --- Giải phóng biến tạm ---
+  genINT(-1);
 }
 
 void compileArgument(Object* param) {
@@ -866,7 +881,7 @@ int compile(char *fileName) {
   compileProgram();
 
   printObject(symtab->program,0);
-  printCodeBuffer(); 
+  // printCodeBuffer(); 
 
   cleanSymTab();
   // cleanCodeBuffer();

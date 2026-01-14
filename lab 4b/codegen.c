@@ -108,8 +108,22 @@ void genVariableAddress(Object* var) {
 
 // [SỬA THEO YÊU CẦU] Sinh mã LA + LI (2 lệnh) thay vì LV
 void genVariableValue(Object* var) {
-  genVariableAddress(var);
-  genLI();
+  int diff, offset;
+  Scope* scope;
+
+  if (var->kind == OBJ_VARIABLE) {
+    scope = var->varAttrs->scope;
+    offset = var->varAttrs->localOffset;
+  } else if (var->kind == OBJ_PARAMETER) {
+    scope = var->paramAttrs->scope;
+    offset = var->paramAttrs->localOffset;
+  } else if (var->kind == OBJ_FUNCTION) {
+    scope = var->funcAttrs->scope;
+    offset = 0;
+  } else return;
+
+  diff = symtab->currentScope->level - scope->level;
+  genLV(diff, offset);
 }
 
 void genPredefinedProcedureCall(Object* proc) {
